@@ -1,59 +1,62 @@
 """
 Layout principal de la ventana de Pecibalto.
+Vista pura: solo presentación, sin lógica de negocio.
 """
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
+from typing import Callable, Optional
 
-from ui.components import StyledButton, URLInput, MutantButton
-from traceability import get_trace_logger
+import config as cfg
+from ui.components import FormatSelector, MutantButton, URLInput
 
 
 class MainWindow:
-    """Ventana principal con la UI básica de entrada y búsqueda."""
+    """Ventana principal con la UI de entrada, preview y controles."""
 
-    def __init__(self, root):
+    def __init__(self, root: tk.Tk):
         self.root = root
-        self._trace = get_trace_logger()
-        self.root.title("Pecibalto - Universal Media Extractor")
-        self.root.geometry("700x400")
-        self.root.configure(bg="#f5f6fa")
-        self.root.minsize(500, 300)
+        self.root.title(f"{cfg.APP_NAME} - {cfg.APP_SUBTITLE}")
+        self.root.geometry(f"{cfg.WINDOW_WIDTH}x{cfg.WINDOW_HEIGHT}")
+        self.root.configure(bg=cfg.BG_PRIMARY)
+        self.root.minsize(cfg.WINDOW_MIN_WIDTH, cfg.WINDOW_MIN_HEIGHT)
+
+        # Callbacks registrados por el controller
+        self._on_find_clicked: Optional[Callable[[], None]] = None
+        self._on_download_clicked: Optional[Callable[[], None]] = None
+        self._on_format_changed: Optional[Callable[[str], None]] = None
+        self._on_browse_clicked: Optional[Callable[[], None]] = None
 
         self.build_ui()
-        self._trace.event("app.started")
 
-    def build_ui(self):
+    def build_ui(self) -> None:
         """Construye los widgets principales."""
-        # Contenedor central
-        container = tk.Frame(self.root, bg="#f5f6fa")
+        container = tk.Frame(self.root, bg=cfg.BG_PRIMARY)
         container.pack(expand=True, fill="both", padx=40, pady=40)
 
         # Título
-        title = tk.Label(
+        tk.Label(
             container,
-            text="Pecibalto",
-            font=("Helvetica", 28, "bold"),
-            bg="#f5f6fa",
-            fg="#2f3640"
-        )
-        title.pack(pady=(0, 5))
+            text=cfg.APP_NAME,
+            font=cfg.FONT_TITLE,
+            bg=cfg.BG_PRIMARY,
+            fg=cfg.TEXT_PRIMARY,
+        ).pack(pady=(0, 5))
 
-        subtitle = tk.Label(
+        tk.Label(
             container,
-            text="Universal Media Extractor",
-            font=("Helvetica", 12),
-            bg="#f5f6fa",
-            fg="#718093"
-        )
-        subtitle.pack(pady=(0, 40))
+            text=cfg.APP_SUBTITLE,
+            font=cfg.FONT_SUBTITLE,
+            bg=cfg.BG_PRIMARY,
+            fg=cfg.TEXT_SECONDARY,
+        ).pack(pady=(0, 40))
 
-        # Marco de entrada
-        input_frame = tk.Frame(container, bg="#f5f6fa")
+        # Input + Botón
+        input_frame = tk.Frame(container, bg=cfg.BG_PRIMARY)
         input_frame.pack(fill="x", pady=(0, 20))
 
         self.url_entry = URLInput(input_frame)
         self.url_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.url_entry.insert(0, "Pega aquí tu enlace...")
+        self.url_entry.insert(0, cfg.URL_PLACEHOLDER)
         self.url_entry.bind("<FocusIn>", self._on_entry_focus_in)
         self.url_entry.bind("<FocusOut>", self._on_entry_focus_out)
 
@@ -62,46 +65,150 @@ class MainWindow:
             search_text="Encontrar",
             download_text="Descargar",
         )
-        self.find_button.set_search_callback(self.handle_find)
-        self.find_button.set_download_callback(self.handle_download)
         self.find_button.pack(side="right")
 
-        # Barra de progreso (inicialmente oculta o en 0)
+        # Selector de formato
+        self.format_selector = FormatSelector(container)
+        self.format_selector.pack(fill="x", pady=(0, 10))
+        self.format_selector.set_on_change(self._trigger_format_changed)
+
+        # Ruta destino
+        path_frame = tk.Frame(container, bg=cfg.BG_PRIMARY)
+        path_frame.pack(fill="x", pady=(0, 10))
+
+        self.path_label = tk.Label(
+            path_frame,
+            text="Destino: (predeterminado)",
+            font=(cfg.FONT_FAMILY, 10),
+            bg=cfg.BG_PRIMARY,
+            fg=cfg.TEXT_SECONDARY,
+            anchor="w",
+        )
+        self.path_label.pack(side="left", fill="x", expand=True)
+
+        browse_btn = tk.Button(
+            path_frame,
+            text="📁",
+            command=self._trigger_browse,
+            bg=cfg.BG_PRIMARY,
+            relief="flat",
+            cursor="hand2",
+        )
+        browse_btn.pack(side="right")
+
+        # Preview area (miniatura + título)
+        self.preview_frame = tk.Frame(container, bg=cfg.BG_PRIMARY)
+        self.preview_frame.pack(fill="both", expand=True, pady=(10, 0))
+
+        self.thumbnail_label = tk.Label(
+            self.preview_frame,
+            bg=cfg.BG_PRIMARY,
+        )
+        self.thumbnail_label.pack(pady=(0, 5))
+
+        self.title_label = tk.Label(
+            self.preview_frame,
+            text="",
+            font=(cfg.FONT_FAMILY, 11, "bold"),
+            bg=cfg.BG_PRIMARY,
+            fg=cfg.TEXT_PRIMARY,
+            wraplength=cfg.WINDOW_WIDTH - 100,
+        )
+        self.title_label.pack()
+
+        # Barra de progreso
         self.progress = ttk.Progressbar(
             container,
             orient="horizontal",
             mode="determinate",
-            length=100
         )
         self.progress.pack(fill="x", pady=(10, 0))
         self.progress["value"] = 0
 
-    def _on_entry_focus_in(self, event):
-        if self.url_entry.get() == "Pega aquí tu enlace...":
+    # ---- Registro de callbacks ----
+
+    def set_on_find_clicked(self, callback: Callable[[], None]) -> None:
+        self._on_find_clicked = callback
+        self.find_button.set_search_callback(self._trigger_find)
+
+    def set_on_download_clicked(self, callback: Callable[[], None]) -> None:
+        self._on_download_clicked = callback
+        self.find_button.set_download_callback(self._trigger_download)
+
+    def set_on_format_changed(self, callback: Callable[[str], None]) -> None:
+        self._on_format_changed = callback
+
+    def set_on_browse_clicked(self, callback: Callable[[], None]) -> None:
+        self._on_browse_clicked = callback
+
+    # ---- Triggers internos ----
+
+    def _trigger_find(self):
+        if self._on_find_clicked is not None:
+            self._on_find_clicked()
+
+    def _trigger_download(self):
+        if self._on_download_clicked is not None:
+            self._on_download_clicked()
+
+    def _trigger_format_changed(self, value: str):
+        if self._on_format_changed is not None:
+            self._on_format_changed(value)
+
+    def _trigger_browse(self):
+        if self._on_browse_clicked is not None:
+            self._on_browse_clicked()
+
+    def _on_entry_focus_in(self, event=None):
+        if self.url_entry.get() == cfg.URL_PLACEHOLDER:
             self.url_entry.delete(0, "end")
             self.url_entry.config(fg="black")
 
-    def _on_entry_focus_out(self, event):
+    def _on_entry_focus_out(self, event=None):
         if not self.url_entry.get().strip():
-            self.url_entry.insert(0, "Pega aquí tu enlace...")
-            self.url_entry.config(fg="#999")
+            self.url_entry.insert(0, cfg.URL_PLACEHOLDER)
+            self.url_entry.config(fg=cfg.PLACEHOLDER_FG)
 
-    def handle_find(self):
-        """Acción temporal del botón Encontrar."""
+    # ---- Métodos de presentación ----
+
+    def get_url(self) -> str:
         url = self.url_entry.get().strip()
-        try:
-            self._trace.event(
-                "ui.find_clicked",
-                url=(url[:512] if url else ""),
-                is_placeholder=(url == "Pega aquí tu enlace..."),
-            )
+        return "" if url == cfg.URL_PLACEHOLDER else url
 
-            if not url or url == "Pega aquí tu enlace...":
-                self._trace.warning("ui.url_empty")
-                messagebox.showwarning("URL vacía", "Pega un enlace antes de buscar.")
-                return
+    def set_thumbnail(self, image_tk) -> None:
+        self.thumbnail_label.config(image=image_tk)
+        self.thumbnail_label.image = image_tk  # keep reference
 
-            self._trace.event("ui.url_loaded", url=url[:512])
-            print(f"[Pecibalto] Buscando: {url}")
-        else:
-            print("[Pecibalto] URL vacía")
+    def set_title(self, text: str) -> None:
+        self.title_label.config(text=text)
+
+    def set_progress(self, value: float) -> None:
+        self.progress["value"] = max(0.0, min(100.0, value))
+
+    def reset_progress(self) -> None:
+        self.progress["value"] = 0
+
+    def set_destination_path(self, path: str) -> None:
+        display = path if path else "(predeterminado)"
+        self.path_label.config(text=f"Destino: {display}")
+
+    def get_selected_format(self) -> str:
+        return self.format_selector.get_selected()
+
+    def show_warning(self, title: str, message: str) -> None:
+        messagebox.showwarning(title, message)
+
+    def show_error(self, title: str, message: str) -> None:
+        messagebox.showerror(title, message)
+
+    def reset(self) -> None:
+        """Limpia la interfaz para una nueva búsqueda."""
+        self.url_entry.delete(0, "end")
+        self.url_entry.insert(0, cfg.URL_PLACEHOLDER)
+        self.url_entry.config(fg=cfg.PLACEHOLDER_FG)
+        self.find_button.to_search()
+        self.thumbnail_label.config(image="")
+        self.thumbnail_label.image = None
+        self.title_label.config(text="")
+        self.reset_progress()
+        self.set_destination_path("")

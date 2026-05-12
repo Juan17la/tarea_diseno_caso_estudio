@@ -2,6 +2,10 @@
 Widgets personalizados reutilizables para la interfaz de Pecibalto.
 """
 import tkinter as tk
+from tkinter import ttk
+from typing import Callable, Optional
+
+import config as cfg
 
 
 class URLInput(tk.Entry):
@@ -10,13 +14,13 @@ class URLInput(tk.Entry):
     def __init__(self, parent, **kwargs):
         super().__init__(
             parent,
-            font=("Helvetica", 11),
+            font=cfg.FONT_INPUT,
             relief="solid",
             bd=1,
-            highlightbackground="#ccc",
-            highlightcolor="#007bff",
+            highlightbackground=cfg.BORDER,
+            highlightcolor=cfg.ACCENT,
             highlightthickness=1,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -27,38 +31,38 @@ class StyledButton(tk.Button):
         super().__init__(
             parent,
             text=text,
-            font=("Helvetica", 10, "bold"),
-            bg="#007bff",
+            font=cfg.FONT_BUTTON,
+            bg=cfg.ACCENT,
             fg="white",
-            activebackground="#0056b3",
+            activebackground=cfg.ACCENT_ACTIVE,
             activeforeground="white",
             relief="flat",
             padx=20,
             pady=8,
             command=command,
             cursor="hand2",
-            **kwargs
+            **kwargs,
         )
 
 
 class MutantButton(StyledButton):
-    """Botón que alterna visual y comportamiento entre 'buscar' y 'descargar'.
+    """Botón que alterna visual y comportamiento entre 'buscar' y 'descargar'."""
 
-    - Estado inicial: 'search' (texto configurable).
-    - Al pulsar en 'search' llama al callback de búsqueda (si está) y pasa
-      al estado 'download'.
-    - Al pulsar en 'download' llama al callback de descarga (si está).
-    """
-
-    def __init__(self, parent, search_text="Encontrar", download_text="Descargar", **kwargs):
+    def __init__(
+        self,
+        parent,
+        search_text="Encontrar",
+        download_text="Descargar",
+        **kwargs,
+    ):
         super().__init__(parent, text=search_text, **kwargs)
         self._search_text = search_text
         self._download_text = download_text
         self._state = "search"
-        self._search_callback = None
-        self._download_callback = None
+        self._search_callback: Optional[Callable[[], None]] = None
+        self._download_callback: Optional[Callable[[], None]] = None
         self._normal_bg = self.cget("bg")
-        self._hover_bg = "#0069d9"
+        self._hover_bg = cfg.ACCENT_HOVER
         self.config(command=self._on_click)
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
@@ -69,26 +73,20 @@ class MutantButton(StyledButton):
     def _on_leave(self, _event=None):
         self.configure(bg=self._normal_bg)
 
-    def set_search_callback(self, cb):
+    def set_search_callback(self, cb: Optional[Callable[[], None]]) -> None:
         self._search_callback = cb
 
-    def set_download_callback(self, cb):
+    def set_download_callback(self, cb: Optional[Callable[[], None]]) -> None:
         self._download_callback = cb
 
     def _on_click(self):
         if self._state == "search":
-            if callable(self._search_callback):
-                try:
-                    self._search_callback()
-                except Exception:
-                    pass
+            if self._search_callback is not None:
+                self._search_callback()
             self.to_download()
-        else:
-            if callable(self._download_callback):
-                try:
-                    self._download_callback()
-                except Exception:
-                    pass
+        elif self._state == "download":
+            if self._download_callback is not None:
+                self._download_callback()
 
     def to_search(self):
         self.config(text=self._search_text)
@@ -97,3 +95,39 @@ class MutantButton(StyledButton):
     def to_download(self):
         self.config(text=self._download_text)
         self._state = "download"
+
+
+class FormatSelector(tk.Frame):
+    """Selector de perfil de formato (Combobox)."""
+
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, bg=cfg.BG_PRIMARY, **kwargs)
+        self._on_change: Optional[Callable[[str], None]] = None
+
+        tk.Label(
+            self,
+            text="Formato:",
+            font=(cfg.FONT_FAMILY, 10),
+            bg=cfg.BG_PRIMARY,
+            fg=cfg.TEXT_PRIMARY,
+        ).pack(side="left", padx=(0, 10))
+
+        self._combo = ttk.Combobox(
+            self,
+            values=list(cfg.FORMAT_PROFILES.keys()),
+            state="readonly",
+            font=(cfg.FONT_FAMILY, 10),
+        )
+        self._combo.set(cfg.DEFAULT_FORMAT)
+        self._combo.pack(side="left", fill="x", expand=True)
+        self._combo.bind("<<ComboboxSelected>>", self._on_combo_changed)
+
+    def set_on_change(self, callback: Callable[[str], None]) -> None:
+        self._on_change = callback
+
+    def _on_combo_changed(self, event=None):
+        if self._on_change is not None:
+            self._on_change(self._combo.get())
+
+    def get_selected(self) -> str:
+        return self._combo.get()
