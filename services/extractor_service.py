@@ -50,8 +50,11 @@ class ExtractorService(IExtractorService):
             }
         )
 
-        with yt_dlp.YoutubeDL(options) as ydl:
-            return ydl.extract_info(url, download=False)
+        try:
+            with yt_dlp.YoutubeDL(options) as ydl:
+                return ydl.extract_info(url, download=False)
+        except yt_dlp.utils.DownloadError as e:
+            raise ValueError(f"La URL es inválida o el video no está disponible: {e}")
 
     def download(self, url, output_path, format_profile, progress_hook):
         """Ejecuta la descarga del medio."""

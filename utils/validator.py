@@ -10,10 +10,10 @@ class URLValidator(IURLValidator):
 
     _PATTERNS = {
         "youtube": re.compile(
-            r"(https?://)?(www\.)?(youtube|youtu|youtube-nocookie)\.(com|be)/.+"
+            r"^(https?://)?(www\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)/.+"
         ),
-        "twitter": re.compile(r"(https?://)?(www\.)?(twitter|x)\.com/.+"),
-        "instagram": re.compile(r"(https?://)?(www\.)?instagram\.com/.+"),
+        "twitter": re.compile(r"^(https?://)?(www\.)?(twitter\.com|x\.com)/.+"),
+        "instagram": re.compile(r"^(https?://)?(www\.)?instagram\.com/.+"),
     }
 
     def validate(self, url: str) -> Tuple[bool, Optional[str]]:
