@@ -4,7 +4,7 @@ Layout principal de la ventana de Pecibalto.
 import tkinter as tk
 from tkinter import ttk
 
-from ui.components import StyledButton, URLInput
+from ui.components import StyledButton, URLInput, MutantButton
 
 
 class MainWindow:
@@ -54,11 +54,13 @@ class MainWindow:
         self.url_entry.bind("<FocusIn>", self._on_entry_focus_in)
         self.url_entry.bind("<FocusOut>", self._on_entry_focus_out)
 
-        self.find_button = StyledButton(
+        self.find_button = MutantButton(
             input_frame,
-            text="Encontrar",
-            command=self.handle_find
+            search_text="Encontrar",
+            download_text="Descargar",
         )
+        self.find_button.set_search_callback(self.handle_find)
+        self.find_button.set_download_callback(self.handle_download)
         self.find_button.pack(side="right")
 
         # Barra de progreso (inicialmente oculta o en 0)
@@ -88,3 +90,11 @@ class MainWindow:
             print(f"[Pecibalto] Buscando: {url}")
         else:
             print("[Pecibalto] URL vacía")
+
+    def handle_download(self):
+        """Acción temporal del botón Descargar."""
+        url = self.url_entry.get().strip()
+        if url and url != "Pega aquí tu enlace...":
+            print(f"[Pecibalto] Descargar: {url}")
+        else:
+            print("[Pecibalto] Descargar: URL vacía")
