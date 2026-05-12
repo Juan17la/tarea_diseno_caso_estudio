@@ -4,7 +4,7 @@ Layout principal de la ventana de Pecibalto.
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from ui.components import StyledButton, URLInput
+from ui.components import StyledButton, URLInput, MutantButton
 from traceability import get_trace_logger
 
 
@@ -57,11 +57,13 @@ class MainWindow:
         self.url_entry.bind("<FocusIn>", self._on_entry_focus_in)
         self.url_entry.bind("<FocusOut>", self._on_entry_focus_out)
 
-        self.find_button = StyledButton(
+        self.find_button = MutantButton(
             input_frame,
-            text="Encontrar",
-            command=self.handle_find
+            search_text="Encontrar",
+            download_text="Descargar",
         )
+        self.find_button.set_search_callback(self.handle_find)
+        self.find_button.set_download_callback(self.handle_download)
         self.find_button.pack(side="right")
 
         # Barra de progreso (inicialmente oculta o en 0)
@@ -101,9 +103,5 @@ class MainWindow:
 
             self._trace.event("ui.url_loaded", url=url[:512])
             print(f"[Pecibalto] Buscando: {url}")
-        except Exception:
-            self._trace.exception("ui.handle_find_failed")
-            messagebox.showerror(
-                "Error",
-                "Ocurrió un error inesperado al procesar la URL. Revisa el log para más detalles.",
-            )
+        else:
+            print("[Pecibalto] URL vacía")
