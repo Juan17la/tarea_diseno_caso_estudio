@@ -2,9 +2,10 @@
 Layout principal de la ventana de Pecibalto.
 """
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from ui.components import StyledButton, URLInput
+from traceability import get_trace_logger
 
 
 class MainWindow:
@@ -12,12 +13,14 @@ class MainWindow:
 
     def __init__(self, root):
         self.root = root
+        self._trace = get_trace_logger()
         self.root.title("Pecibalto - Universal Media Extractor")
         self.root.geometry("700x400")
         self.root.configure(bg="#f5f6fa")
         self.root.minsize(500, 300)
 
         self.build_ui()
+        self._trace.event("app.started")
 
     def build_ui(self):
         """Construye los widgets principales."""
@@ -84,7 +87,23 @@ class MainWindow:
     def handle_find(self):
         """Acción temporal del botón Encontrar."""
         url = self.url_entry.get().strip()
-        if url and url != "Pega aquí tu enlace...":
+        try:
+            self._trace.event(
+                "ui.find_clicked",
+                url=(url[:512] if url else ""),
+                is_placeholder=(url == "Pega aquí tu enlace..."),
+            )
+
+            if not url or url == "Pega aquí tu enlace...":
+                self._trace.warning("ui.url_empty")
+                messagebox.showwarning("URL vacía", "Pega un enlace antes de buscar.")
+                return
+
+            self._trace.event("ui.url_loaded", url=url[:512])
             print(f"[Pecibalto] Buscando: {url}")
-        else:
-            print("[Pecibalto] URL vacía")
+        except Exception:
+            self._trace.exception("ui.handle_find_failed")
+            messagebox.showerror(
+                "Error",
+                "Ocurrió un error inesperado al procesar la URL. Revisa el log para más detalles.",
+            )
