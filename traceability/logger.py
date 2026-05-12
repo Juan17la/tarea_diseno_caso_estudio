@@ -119,6 +119,7 @@ def get_trace_logger(
     name: str = "pecibalto",
     log_file: str = os.path.join("logs", "pecibalto.log"),
     level: int = logging.INFO,
+    force_new: bool = False,
 ) -> TraceLogger:
     """Return a singleton trace logger.
 
@@ -128,7 +129,7 @@ def get_trace_logger(
     """
 
     global _TRACE_LOGGER
-    if _TRACE_LOGGER is None:
+    if _TRACE_LOGGER is None or force_new:
         base = _build_base_logger(name=name, log_file=log_file, level=level)
         _TRACE_LOGGER = TraceLogger(base)
     return _TRACE_LOGGER

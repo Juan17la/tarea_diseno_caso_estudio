@@ -9,11 +9,13 @@ from typing import Any, Callable, Optional
 
 import yt_dlp
 
+from core.contracts import IExtractorService
+
 
 ProgressCallback = Callable[[float, dict[str, Any]], None]
 
 
-class ExtractorService:
+class ExtractorService(IExtractorService):
     """Encapsula la lógica de extracción de información y descarga con yt-dlp."""
 
     def __init__(
