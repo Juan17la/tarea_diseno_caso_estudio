@@ -198,8 +198,17 @@ class MainWindow:
     def show_warning(self, title: str, message: str) -> None:
         messagebox.showwarning(title, message)
 
+    def show_info(self, title: str, message: str) -> None:
+        messagebox.showinfo(title, message)
+
     def show_error(self, title: str, message: str) -> None:
         messagebox.showerror(title, message)
+
+    def get_destination_path(self) -> str:
+        text = self.path_label.cget("text")
+        if text == "Destino: (predeterminado)":
+            return ""
+        return text.replace("Destino: ", "", 1)
 
     def reset(self) -> None:
         """Limpia la interfaz para una nueva búsqueda."""

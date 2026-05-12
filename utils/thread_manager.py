@@ -39,7 +39,7 @@ class ThreadManager(IThreadManager):
                     on_error(exc)
                 else:
                     raise
-            finally:
+            else:
                 if on_done is not None:
                     on_done()
 
