@@ -48,6 +48,9 @@ class StyledButton(tk.Button):
 class MutantButton(StyledButton):
     """Botón que alterna visual y comportamiento entre 'buscar' y 'descargar'."""
 
+    _DOWNLOAD_BG = "#28a745"
+    _DOWNLOAD_HOVER = "#218838"
+
     def __init__(
         self,
         parent,
@@ -61,17 +64,19 @@ class MutantButton(StyledButton):
         self._state = "search"
         self._search_callback: Optional[Callable[[], None]] = None
         self._download_callback: Optional[Callable[[], None]] = None
-        self._normal_bg = self.cget("bg")
+        self._normal_bg = cfg.ACCENT
         self._hover_bg = cfg.ACCENT_HOVER
         self.config(command=self._on_click)
         self.bind("<Enter>", self._on_enter)
         self.bind("<Leave>", self._on_leave)
 
     def _on_enter(self, _event=None):
-        self.configure(bg=self._hover_bg)
+        if str(self.cget("state")) != "disabled":
+            self.configure(bg=self._hover_bg)
 
     def _on_leave(self, _event=None):
-        self.configure(bg=self._normal_bg)
+        if str(self.cget("state")) != "disabled":
+            self.configure(bg=self._normal_bg)
 
     def set_search_callback(self, cb: Optional[Callable[[], None]]) -> None:
         self._search_callback = cb
@@ -79,22 +84,31 @@ class MutantButton(StyledButton):
     def set_download_callback(self, cb: Optional[Callable[[], None]]) -> None:
         self._download_callback = cb
 
+    def set_enabled(self, enabled: bool) -> None:
+        self.config(state="normal" if enabled else "disabled")
+
     def _on_click(self):
         if self._state == "search":
+            self.set_enabled(False)
             if self._search_callback is not None:
                 self._search_callback()
             self.to_download()
         elif self._state == "download":
+            self.set_enabled(False)
             if self._download_callback is not None:
                 self._download_callback()
 
     def to_search(self):
-        self.config(text=self._search_text)
         self._state = "search"
+        self._normal_bg = cfg.ACCENT
+        self._hover_bg = cfg.ACCENT_HOVER
+        self.config(text=self._search_text, bg=cfg.ACCENT, state="normal")
 
     def to_download(self):
-        self.config(text=self._download_text)
         self._state = "download"
+        self._normal_bg = self._DOWNLOAD_BG
+        self._hover_bg = self._DOWNLOAD_HOVER
+        self.config(text=self._download_text, bg=self._DOWNLOAD_BG)
 
 
 class FormatSelector(tk.Frame):
@@ -131,3 +145,9 @@ class FormatSelector(tk.Frame):
 
     def get_selected(self) -> str:
         return self._combo.get()
+
+    def get_selected_profile(self) -> dict:
+        return cfg.FORMAT_PROFILES[self.get_selected()]
+
+    def reset(self) -> None:
+        self._combo.set(cfg.DEFAULT_FORMAT)

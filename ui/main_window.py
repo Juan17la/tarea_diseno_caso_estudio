@@ -3,6 +3,7 @@ Layout principal de la ventana de Pecibalto.
 Vista pura: solo presentación, sin lógica de negocio.
 """
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable, Optional
 
@@ -19,6 +20,8 @@ class MainWindow:
         self.root.geometry(f"{cfg.WINDOW_WIDTH}x{cfg.WINDOW_HEIGHT}")
         self.root.configure(bg=cfg.BG_PRIMARY)
         self.root.minsize(cfg.WINDOW_MIN_WIDTH, cfg.WINDOW_MIN_HEIGHT)
+
+        self._destination_path: str = ""
 
         # Callbacks registrados por el controller
         self._on_find_clicked: Optional[Callable[[], None]] = None
@@ -104,7 +107,7 @@ class MainWindow:
             self.preview_frame,
             bg=cfg.BG_PRIMARY,
         )
-        self.thumbnail_label.pack(pady=(0, 5))
+        # No se hace pack aquí; se muestra solo cuando hay imagen
 
         self.title_label = tk.Label(
             self.preview_frame,
@@ -112,9 +115,10 @@ class MainWindow:
             font=(cfg.FONT_FAMILY, 11, "bold"),
             bg=cfg.BG_PRIMARY,
             fg=cfg.TEXT_PRIMARY,
-            wraplength=cfg.WINDOW_WIDTH - 100,
+            wraplength=cfg.WINDOW_WIDTH - 80,
         )
         self.title_label.pack()
+        self.root.bind("<Configure>", self._on_resize)
 
         # Barra de progreso
         self.progress = ttk.Progressbar(
@@ -124,6 +128,10 @@ class MainWindow:
         )
         self.progress.pack(fill="x", pady=(10, 0))
         self.progress["value"] = 0
+
+    def _on_resize(self, event=None) -> None:
+        if event and event.widget is self.root:
+            self.title_label.config(wraplength=event.width - 80)
 
     # ---- Registro de callbacks ----
 
@@ -176,8 +184,13 @@ class MainWindow:
         return "" if url == cfg.URL_PLACEHOLDER else url
 
     def set_thumbnail(self, image_tk) -> None:
-        self.thumbnail_label.config(image=image_tk)
-        self.thumbnail_label.image = image_tk  # keep reference
+        if image_tk:
+            self.thumbnail_label.config(image=image_tk)
+            self.thumbnail_label.image = image_tk
+            self.thumbnail_label.pack(pady=(0, 5), before=self.title_label)
+        else:
+            self.thumbnail_label.pack_forget()
+            self.thumbnail_label.image = None
 
     def set_title(self, text: str) -> None:
         self.title_label.config(text=text)
@@ -189,20 +202,37 @@ class MainWindow:
         self.progress["value"] = 0
 
     def set_destination_path(self, path: str) -> None:
-        display = path if path else "(predeterminado)"
+        self._destination_path = path
+        if not path:
+            display = "(predeterminado)"
+        else:
+            p = Path(path)
+            parts = p.parts
+            if len(path) > 50 and len(parts) >= 3:
+                display = f".../{parts[-2]}/{parts[-1]}"
+            elif len(path) > 50:
+                display = "..." + path[-47:]
+            else:
+                display = path
         self.path_label.config(text=f"Destino: {display}")
+
+    def get_destination_path(self) -> str:
+        return self._destination_path
 
     def get_selected_format(self) -> str:
         return self.format_selector.get_selected()
 
+    def show_info(self, title: str, message: str) -> None:
+        messagebox.showinfo(f"{cfg.APP_NAME} — {title}", message)
+
     def show_warning(self, title: str, message: str) -> None:
-        messagebox.showwarning(title, message)
+        messagebox.showwarning(f"{cfg.APP_NAME} — {title}", message)
 
     def show_info(self, title: str, message: str) -> None:
         messagebox.showinfo(title, message)
 
     def show_error(self, title: str, message: str) -> None:
-        messagebox.showerror(title, message)
+        messagebox.showerror(f"{cfg.APP_NAME} — {title}", message)
 
     def get_destination_path(self) -> str:
         text = self.path_label.cget("text")
@@ -216,8 +246,8 @@ class MainWindow:
         self.url_entry.insert(0, cfg.URL_PLACEHOLDER)
         self.url_entry.config(fg=cfg.PLACEHOLDER_FG)
         self.find_button.to_search()
-        self.thumbnail_label.config(image="")
-        self.thumbnail_label.image = None
+        self.set_thumbnail(None)
         self.title_label.config(text="")
         self.reset_progress()
+        self.format_selector.reset()
         self.set_destination_path("")
