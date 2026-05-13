@@ -26,3 +26,4 @@ Al descargar, el programa utiliza `yt-dlp` para obtener el archivo multimedia, m
 | **10. Reset UI** | Función `reset_app` que limpia la interfaz tras éxito. | [ ] No hecha |
 
 ## Los commits hechos del laboratorio informatica 1 son hechos por Juan33-Felipe
+ Los commits hechos antes se hicieron con el usuario de Juan felipe pero quien los hizo fue Edgar Arteaga
